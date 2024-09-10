@@ -11,6 +11,7 @@ interface IProps {
 interface PerspectiveViewerElement extends HTMLElement {
   load: (table: Table) => void,
 }
+
 class Graph extends Component<IProps, {}> {
   table: Table | undefined;
 
@@ -27,6 +28,9 @@ class Graph extends Component<IProps, {}> {
       top_ask_price: 'float',
       top_bid_price: 'float',
       timestamp: 'date',
+      ratio: 'float',
+      upper_bound: 'float',
+      lower_bound: 'float',
     };
 
     if (window.perspective && window.perspective.worker()) {
@@ -38,20 +42,24 @@ class Graph extends Component<IProps, {}> {
       elem.setAttribute('view', 'y_line');
       elem.setAttribute('column-pivots', '["stock"]');
       elem.setAttribute('row-pivots', '["timestamp"]');
-      elem.setAttribute('columns', '["top_ask_price"]');
+      elem.setAttribute('columns', '["ratio", "upper_bound", "lower_bound"]');
       elem.setAttribute('aggregates', JSON.stringify({
         stock: 'distinctcount',
         top_ask_price: 'avg',
         top_bid_price: 'avg',
         timestamp: 'distinct count',
+        ratio: 'avg',
+        upper_bound: 'max',
+        lower_bound: 'min',
       }));
     }
   }
 
   componentDidUpdate() {
     if (this.table) {
+      // Update the table with the new data in the correct format
       this.table.update(
-        DataManipulator.generateRow(this.props.data),
+        DataManipulator.generateRow(this.props.data) as any
       );
     }
   }
