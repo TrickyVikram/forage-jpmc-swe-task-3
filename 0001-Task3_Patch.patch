@@ -1,0 +1,127 @@
+From c4cdbd8389b6a317c1d20daf4a1975973245131a Mon Sep 17 00:00:00 2001
+From: TrickyVikram <vkumarsah999@gmail.com>
+Date: Wed, 11 Sep 2024 01:44:09 +0530
+Subject: [PATCH] Task3_Patch
+
+---
+ src/DataManipulator.ts | 44 +++++++++++++++++++++++++++++++++---------
+ src/Graph.tsx          | 14 +++++++++++---
+ 2 files changed, 46 insertions(+), 12 deletions(-)
+
+diff --git a/src/DataManipulator.ts b/src/DataManipulator.ts
+index 7f62295..6e3fe8b 100644
+--- a/src/DataManipulator.ts
++++ b/src/DataManipulator.ts
+@@ -1,20 +1,46 @@
++
+ import { ServerRespond } from './DataStreamer';
+ 
+ export interface Row {
+   stock: string,
+   top_ask_price: number,
++  top_bid_price: number,
+   timestamp: Date,
++  ratio: number,
++  upper_bound: number,
++  lower_bound: number,
+ }
+ 
+-
+ export class DataManipulator {
+-  static generateRow(serverResponds: ServerRespond[]) {
+-    return serverResponds.map((el: any) => {
+-      return {
+-        stock: el.stock,
+-        top_ask_price: el.top_ask && el.top_ask.price || 0,
+-        timestamp: el.timestamp,
+-      };
+-    })
++  static generateRow(serverResponds: ServerRespond[]): Record<string, (string | number | boolean | Date)[]> {
++    // Initialize an empty dictionary to store column data
++    const columns: Record<string, (string | number | boolean | Date)[]> = {
++      stock: [],
++      top_ask_price: [],
++      top_bid_price: [],
++      timestamp: [],
++      ratio: [],
++      upper_bound: [],
++      lower_bound: [],
++    };
++
++    serverResponds.forEach((el: any) => {
++      const topAskPrice = el.top_ask && el.top_ask.price || 0;
++      const topBidPrice = el.top_bid && el.top_bid.price || 0;
++      const ratio = topAskPrice / (topBidPrice || 1); // Avoid division by zero
++
++      columns.stock.push(el.stock);
++      columns.top_ask_price.push(topAskPrice);
++      columns.top_bid_price.push(topBidPrice);
++      columns.timestamp.push(el.timestamp);
++      columns.ratio.push(ratio);
++      columns.upper_bound.push(100); // Example upper bound
++      columns.lower_bound.push(10);  // Example lower bound
++    });
++
++    return columns;
+   }
+ }
++
++
++
+diff --git a/src/Graph.tsx b/src/Graph.tsx
+index 277797d..71c3b8e 100644
+--- a/src/Graph.tsx
++++ b/src/Graph.tsx
+@@ -11,6 +11,7 @@ interface IProps {
+ interface PerspectiveViewerElement extends HTMLElement {
+   load: (table: Table) => void,
+ }
++
+ class Graph extends Component<IProps, {}> {
+   table: Table | undefined;
+ 
+@@ -27,6 +28,9 @@ class Graph extends Component<IProps, {}> {
+       top_ask_price: 'float',
+       top_bid_price: 'float',
+       timestamp: 'date',
++      ratio: 'float',
++      upper_bound: 'float',
++      lower_bound: 'float',
+     };
+ 
+     if (window.perspective && window.perspective.worker()) {
+@@ -38,23 +42,27 @@ class Graph extends Component<IProps, {}> {
+       elem.setAttribute('view', 'y_line');
+       elem.setAttribute('column-pivots', '["stock"]');
+       elem.setAttribute('row-pivots', '["timestamp"]');
+-      elem.setAttribute('columns', '["top_ask_price"]');
++      elem.setAttribute('columns', '["ratio", "upper_bound", "lower_bound"]');
+       elem.setAttribute('aggregates', JSON.stringify({
+         stock: 'distinctcount',
+         top_ask_price: 'avg',
+         top_bid_price: 'avg',
+         timestamp: 'distinct count',
++        ratio: 'avg',
++        upper_bound: 'max',
++        lower_bound: 'min',
+       }));
+     }
+   }
+ 
+   componentDidUpdate() {
+     if (this.table) {
++      // Update the table with the new data in the correct format
+       this.table.update(
+-        DataManipulator.generateRow(this.props.data),
++        DataManipulator.generateRow(this.props.data) as any
+       );
+     }
+   }
+ }
+ 
+-export default Graph;
++export default Graph;
+\ No newline at end of file
+-- 
+2.45.1
+
